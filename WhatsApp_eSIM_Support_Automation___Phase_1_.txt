@@ -1,0 +1,1635 @@
+{
+  "name": "WhatsApp eSIM Support Automation – Phase 1.",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const text = $json.body || $json.message || '';\nconst approval = text.trim().toUpperCase() === 'YES' ? 'YES' : 'NO';\nreturn [{ json: { approval } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        350
+      ],
+      "id": "00456df7-69f3-4fc1-90f5-8ba5a8ed6ed6",
+      "name": "Extract Approval Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4274cf1f-ac7b-42cc-b98c-f4bca21f9391",
+              "leftValue": "={{$json.approval}}",
+              "rightValue": "YES",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1980,
+        350
+      ],
+      "id": "fce3600c-7c2d-4574-9bce-4fe98c9ba23d",
+      "name": "Check First Approval"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6774dad3-f9d8-404f-b72f-de7ab41ac183",
+              "name": "messageID",
+              "value": "=$(\"Send Email to Orange Support\").item.json.messageId",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2420,
+        250
+      ],
+      "id": "38271bec-6155-42a5-b925-fa14e00121c7",
+      "name": "Store Message-ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.headers && $json.headers['in-reply-to'] === $(\"Store Message-ID\").item.json.messageID) {\n  // This is the correct reply\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        125
+      ],
+      "id": "9aff0e10-79a3-400c-98c3-04b2253ceb1c",
+      "name": "Extract Orange Reply"
+    },
+    {
+      "parameters": {
+        "amount": 12,
+        "unit": "hours"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3960,
+        125
+      ],
+      "id": "a3308da2-1ae0-4a5d-87d1-73b0552325ac",
+      "name": "Wait for Second Approval",
+      "webhookId": "2a36bccc-b85c-4908-8182-fdfa40471d34"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.body || $json.message || '';\nconst approval2 = text.trim().toUpperCase() === 'YES' ? 'YES' : 'NO';\nreturn [{ json: { approval2 } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4620,
+        0
+      ],
+      "id": "382761c8-cc00-4119-aa19-74c0ffcb5d37",
+      "name": "Extract Second Approval"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8cb75d0d-e028-4e72-acc8-2af9f6b123a7",
+              "leftValue": "={{$json.approval2}}",
+              "rightValue": "YES",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4840,
+        0
+      ],
+      "id": "d35f815c-96c2-4bc2-8c0a-82d2a6c01e6a",
+      "name": "Check Second Approval"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.body || $json.message || '';\n\n// NSCE patterns\nconst nscePatterns = [\n  /NSCE\\s*[:=]\\s*([A-Za-z0-9]+)/i,\n  /NSCE\\s+-\\s+([A-Za-z0-9]+)/i,\n  /NSCE\\s+is\\s+([A-Za-z0-9]+)/i,\n  /My\\s+NSCE\\s+is\\s+([A-Za-z0-9]+)/i,\n  /The\\s+NSCE\\s+is\\s+([A-Za-z0-9]+)/i,\n  /NSCE’s?\\s+value\\s+is\\s+([A-Za-z0-9]+)/i,\n  /NSCE\\s+([A-Za-z0-9]+)/i\n];\n\n// MSISDN patterns\nconst msisdnPatterns = [\n  /MSISDN\\s*[:=]\\s*([0-9]+)/i,\n  /MSISDN\\s+-\\s+([0-9]+)/i,\n  /MSISDN\\s+is\\s+([0-9]+)/i,\n  /My\\s+MSISDN\\s+is\\s+([0-9]+)/i,\n  /The\\s+MSISDN\\s+is\\s+([0-9]+)/i,\n  /MSISDN’s?\\s+value\\s+is\\s+([0-9]+)/i,\n  /MSISDN\\s+([0-9]+)/i\n];\n\nlet nsce = null;\nlet msisdn = null;\n\n// Try all NSCE patterns\nfor (const pattern of nscePatterns) {\n  const match = text.match(pattern);\n  if (match) {\n    nsce = match[1];\n    break;\n  }\n}\n\n// Try all MSISDN patterns\nfor (const pattern of msisdnPatterns) {\n  const match = text.match(pattern);\n  if (match) {\n    msisdn = match[1];\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    nsce,\n    msisdn,\n    originalMessage: text,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        650
+      ],
+      "id": "54d65b17-9d81-4cd9-b12e-70c3548ba866",
+      "name": "Extract NSCE and MSISDN"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "={{$(\"WhatsApp Webhook Trigger\").item.json.from}}",
+        "textBody": "=Hello, here is an update from the network regarding your eSIM request:\n\n{{$(\"Extract Orange Reply\").item.json.orangeReply}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        5060,
+        -100
+      ],
+      "id": "143fe3bc-7dc8-49bd-8db1-bc632203625e",
+      "name": "Send Orange's Reply to Customer",
+      "webhookId": "2c72fda2-6d5f-4d64-9181-21929e33a984"
+    },
+    {
+      "parameters": {
+        "amount": 12,
+        "unit": "hours"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        475
+      ],
+      "id": "f4f8cf45-bd9c-422d-9e25-1447bf19f5f7",
+      "name": "Wait for First Approval",
+      "webhookId": "ace23e3f-6c6b-4ab9-8ab0-5ea3fb356d8c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Try to support multiple common WhatsApp webhook formats\nlet from = $json.from || ($json.messages && $json.messages[0] && $json.messages[0].from) || '';\nlet message = $json.body || $json.message || ($json.messages && $json.messages[0] && ($json.messages[0].body || $json.messages[0].text && $json.messages[0].text.body)) || '';\nlet profileName = $json.profileName || ($json.contacts && $json.contacts[0] && $json.contacts[0].profile && $json.contacts[0].profile.name) || '';\n\nreturn [{\n  json: {\n    from,\n    message,\n    profileName,\n    originalPayload: $json\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        660
+      ],
+      "id": "2290111a-17d7-4437-8d32-b72c7c9a7bc9",
+      "name": "Extract WhatsApp Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0953940-664e-4fe9-a962-874c80bb7960",
+              "leftValue": "={{$json[\"approval\"]}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        400
+      ],
+      "id": "05619f99-761b-4d7f-8a6b-fbfd7a12a14c",
+      "name": "Check if Approval Received"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a2315eab-c3a6-4ad8-a6cb-0b10730d6cb3",
+              "leftValue": "={{$json.nsce}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "a102552e-585c-4bbd-af05-63a281aea5d6",
+              "leftValue": "={{$json.msisdn}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        575
+      ],
+      "id": "dcb553ce-0d61-43fb-b02e-833e9d08b19d",
+      "name": "Check NSCE & MSISDN Present"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "={{$json[\"from\"]}}",
+        "textBody": "Hi, to raise this issue with the network, could you please provide your NSCE and MSISDN?",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        880,
+        675
+      ],
+      "id": "316d3199-1339-417c-add9-c9f68baa2e27",
+      "name": "Request NSCE & MSISDN from Customer",
+      "webhookId": "2c72fda2-6d5f-4d64-9181-21929e33a984"
+    },
+    {
+      "parameters": {
+        "amount": 12,
+        "unit": "hours"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        780
+      ],
+      "id": "1db1a5eb-27a2-45e7-bcd2-d3b61a1512e0",
+      "name": "Wait for Customer Response",
+      "webhookId": "7950bd41-96ca-4234-9bfc-9c9d46e7f80e",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "Approval's WhatsApp number/ group's WhatsApp ID",
+        "textBody": "=New Orange ticket draft: \nNSCE: {{$json.nsce}} \nMSISDN: {{$json.msisdn}} \nIssue: {{$json.originalMessage}} \nReply YES to approve or NO to reject.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        880,
+        475
+      ],
+      "id": "d8b7d567-96b9-45fd-9860-a1aa3668c214",
+      "name": "Send Ticket Draft for Approval",
+      "webhookId": "2c72fda2-6d5f-4d64-9181-21929e33a984"
+    },
+    {
+      "parameters": {
+        "sendTo": "ops.support@orange.com",
+        "subject": "=eSIM Ticket NSCE {{$json.nsce}} / MSISDN {{$json.msisdn}}",
+        "emailType": "text",
+        "message": "=Dear Orange Support,\n\nA new eSIM issue has been reported.\n\nIssue Description: {{$json.originalMessage}} \nNSCE: {{$json.nsce}} \nMSISDN: {{$json.msisdn}} \nChat log: {{$json.chatLog}}\n\nPlease advise on next steps.\n\nRegards,\nSupport Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2200,
+        250
+      ],
+      "id": "ce17cb33-a9e9-4529-bb25-1ca4c2234086",
+      "name": "Send Email to Orange Support",
+      "webhookId": "a0bc2515-2485-4083-9a5b-12c4e55425a5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "S0ikgWCJa8TZRGw7",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 12,
+        "unit": "hours"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2640,
+        250
+      ],
+      "id": "b743aea8-03ed-485f-90ea-b7fa613329c0",
+      "name": "Wait for Orange Reply",
+      "webhookId": "11ccb584-7076-4910-8888-05a547bf1f43"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6c622ccb-0a4f-47d5-a0cd-39c317a1c9d5",
+              "leftValue": "={{$json[\"headers\"][\"in-reply-to\"]}}",
+              "rightValue": "=$(\"Store Message-ID\").item.json.messageID",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3080,
+        175
+      ],
+      "id": "9377a9dc-e312-4b99-a1f5-e8c3ce29ec54",
+      "name": "Is Orange Reply for This Ticket?"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {
+          "q": "=rfc822msgid:{{$(\"Store Message-ID\").item.json.messageID}} is:unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3300,
+        125
+      ],
+      "id": "42b8addc-2558-4189-93bf-fc42a87390e7",
+      "name": "Wait for Orange Reply1",
+      "webhookId": "0be1678d-57bd-4d26-b1da-53274b5bdd21",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "S0ikgWCJa8TZRGw7",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "Approval's WhatsApp number/ group's WhatsApp ID",
+        "textBody": "=Orange has replied to the eSIM request.\n\nNSCE: {{$(\"Extract NSCE and MSISDN\").item.json.nsce}}\nMSISDN: {{$(\"Extract NSCE and MSISDN\").item.json.msisdn}}\nOrange Reply: {{$(\"Extract Orange Reply\").item.json.orangeReply}}\n\nPlease reply YES to send this to the customer, or NO to reject.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        3740,
+        40
+      ],
+      "id": "c04c205c-5de8-4010-b939-e33ea99a86c6",
+      "name": "Send Orange Reply for Second Approval",
+      "webhookId": "2c72fda2-6d5f-4d64-9181-21929e33a984"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "99c9f5f2-ff9f-4604-8ba7-50b31162f670",
+              "leftValue": "={{$json[\"approval2\"]}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4400,
+        50
+      ],
+      "id": "65713c7f-73ca-4ac4-914a-29c2fa43137e",
+      "name": "Is Second Approval Received?"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "={{$(\"WhatsApp Webhook Trigger\").item.json.from}}",
+        "textBody": "=Unfortunately, we are unable to provide an update on your eSIM request at this time. Please contact support for further assistance.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        5060,
+        100
+      ],
+      "id": "ec66ba96-a3f3-4164-a509-11e91b8488bf",
+      "name": "Send Failure Message to Customer",
+      "webhookId": "2c72fda2-6d5f-4d64-9181-21929e33a984"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg",
+          "mode": "list",
+          "cachedResultName": "eSIM WhatsApp Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{$now}}",
+            "MSISDN": "{{$(\"Extract NSCE and MSISDN\").item.json.msisdn}}",
+            "Issue": "{{$(\"Extract NSCE and MSISDN\").item.json.originalMessage}}",
+            "Human Approval 1": "NO",
+            "NSCE": "{{$(\"Extract NSCE and MSISDN\").item.json.nsce}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "NSCE",
+              "displayName": "NSCE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MSISDN",
+              "displayName": "MSISDN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Status",
+              "displayName": "Email Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Orange Reply",
+              "displayName": "Orange Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Human Approval 1",
+              "displayName": "Human Approval 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Human Approval 2",
+              "displayName": "Human Approval 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Final Customer Reply",
+              "displayName": "Final Customer Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2420,
+        450
+      ],
+      "id": "ad4a84ab-c604-4cad-8763-edfbeb97fa55",
+      "name": "Log Ticket (Pending) to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "lvrPDxVtfu1Kxh8v",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg",
+          "mode": "list",
+          "cachedResultName": "eSIM WhatsApp Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{$now}}",
+            "Email Status": "Sent",
+            "NSCE": "{{$(\"Extract NSCE and MSISDN\").item.json.nsce}}",
+            "MSISDN": "{{$(\"Extract NSCE and MSISDN\").item.json.msisdn}}",
+            "Issue": "{{$(\"Extract NSCE and MSISDN\").item.json.originalMessage}}",
+            "Orange Reply": "{{$(\"Extract Orange Reply\").item.json.orangeReply}}",
+            "Human Approval 1": "{{$(\"Extract Approval Response\").item.json.approval}}",
+            "Human Approval 2": "{{$(\"Extract Second Approval\").item.json.approval2}}",
+            "Final Customer Reply": "{{$(\"Send Orange Reply to Customer\").item.json.message}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "NSCE",
+              "displayName": "NSCE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MSISDN",
+              "displayName": "MSISDN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Status",
+              "displayName": "Email Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Orange Reply",
+              "displayName": "Orange Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Human Approval 1",
+              "displayName": "Human Approval 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Human Approval 2",
+              "displayName": "Human Approval 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Final Customer Reply",
+              "displayName": "Final Customer Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        5280,
+        -100
+      ],
+      "id": "ea6347e4-450f-4d42-b254-54013301628c",
+      "name": "Log Ticket (Success) to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "lvrPDxVtfu1Kxh8v",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg",
+          "mode": "list",
+          "cachedResultName": "eSIM WhatsApp Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1rVjhAcZ9FJONCFr45UkOt6ApYKyYe7aKOjV9_H2hvCg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{$now}}",
+            "Human Approval 2": "{{$(\"Extract Second Approval\").item.json.approval2}}",
+            "Email Status": "Sent",
+            "Orange Reply": "{{$(\"Extract Orange Reply\").item.json.orangeReply}}",
+            "Human Approval 1": "{{$(\"Extract Approval Response\").item.json.approval}}",
+            "NSCE": "{{$(\"Extract NSCE and MSISDN\").item.json.nsce}}",
+            "MSISDN": "{{$(\"Extract NSCE and MSISDN\").item.json.msisdn}}",
+            "Issue": "{{$(\"Extract NSCE and MSISDN\").item.json.originalMessage}}",
+            "Final Customer Reply": "{{$(\"Send Orange Reply to Customer\").item.json.message}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "NSCE",
+              "displayName": "NSCE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MSISDN",
+              "displayName": "MSISDN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Status",
+              "displayName": "Email Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Orange Reply",
+              "displayName": "Orange Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Human Approval 1",
+              "displayName": "Human Approval 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Human Approval 2",
+              "displayName": "Human Approval 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Final Customer Reply",
+              "displayName": "Final Customer Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        5280,
+        100
+      ],
+      "id": "83e6f32b-1110-413c-be43-a48aee6b5c1e",
+      "name": "og Ticket (Pending) to Google Sheets\tLogs pending ticket to Google Sheets Google Sheets2\tLog Ticket (Final) to Google Sheets"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "Approval's WhatsApp number/ group's WhatsApp ID",
+        "textBody": "=No approval was received for eSIM request \n(MSISDN: {{$(\"Extract NSCE and MSISDN\").item.json.msisdn}}) within 12 hours. \nStatus set to Pending.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        575
+      ],
+      "id": "531705c7-dd12-4439-9e74-ec049afe7213",
+      "name": "Notify Pending Status to Approver",
+      "webhookId": "2c72fda2-6d5f-4d64-9181-21929e33a984"
+    },
+    {
+      "parameters": {
+        "sendTo": "ops.support@orange.com",
+        "subject": "Reminder: No reply from Orange for eSIM request",
+        "emailType": "text",
+        "message": "=No reply was received from Orange for the eSIM request\n(NSCE: {{$(\"Extract NSCE and MSISDN\").item.json.nsce}}\nMSISDN: {{$(\"Extract NSCE and MSISDN\").item.json.msisdn}})\nwithin 12 hours. Please follow up.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3260,
+        300
+      ],
+      "id": "1d9f9958-68cb-4267-a3bf-676968092fb9",
+      "name": "Send Reminder to Orange Support",
+      "webhookId": "ede2ecac-41d6-402e-80a5-3ddea2b26afd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "S0ikgWCJa8TZRGw7",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "The approver’s number or group.",
+        "textBody": "=No second approval received for eSIM request (NSCE: {{$(\"Extract NSCE and MSISDN\").item.json.nsce}}, MSISDN: {{$(\"Extract NSCE and MSISDN\").item.json.msisdn}}) within 12 hours. \nPlease follow up.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        4620,
+        225
+      ],
+      "id": "08fce924-234d-4dbb-b09f-b4ed0f4b11fe",
+      "name": "Notify Second Approval Timeout",
+      "webhookId": "9ce78946-0b5b-46d2-8327-f7a4bd76f71a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.body || $json.message || '';\nconst approval = text.trim().toUpperCase() === 'YES' ? 'YES' : 'NO';\nreturn [{ json: { approval } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        400
+      ],
+      "id": "902db9b9-bee9-4c4f-b4f7-1a69cca746ee",
+      "name": "Extract Approval Response1"
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.headers && $json.headers['in-reply-to'] === $(\"Store Message-ID\").item.json.messageID) {\n  // This is the correct reply\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        175
+      ],
+      "id": "378772e0-c542-475f-83fd-a5fa2287d80f",
+      "name": "Extract Orange Reply1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.body || $json.message || '';\nconst approval2 = text.trim().toUpperCase() === 'YES' ? 'YES' : 'NO';\nreturn [{ json: { approval2 } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4180,
+        50
+      ],
+      "id": "27864fec-4ee8-4cef-9a6b-28d0e4d83e2d",
+      "name": "Extract Second Approval1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "={{$('Extract WhatsApp Data').item.json.from}}",
+        "textBody": "Pending",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        450
+      ],
+      "id": "dbc40716-6acf-425c-9fb9-553a6668bfd9",
+      "name": "Reply to customer-Pending",
+      "webhookId": "02909c4f-9948-4a9c-8438-5be10c6a6cba"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8a74c71a-fbb9-4319-a5c8-6b2b9c5574b0",
+              "leftValue": "approval1",
+              "rightValue": "YES",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "a0ca5548-cfaa-439b-a8de-a5680ceb06ad",
+              "leftValue": "approval2",
+              "rightValue": "YES",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1500,
+        -160
+      ],
+      "id": "fd7a50ed-8057-49b4-b561-4ae9d869bdfb",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        660
+      ],
+      "id": "f732aed0-cab6-4022-b386-dd3ac74892b7",
+      "name": "WhatsApp Webhook Trigger",
+      "webhookId": "923ac78f-dbb2-4265-89e0-6a6a9503b2f6"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "recipientPhoneNumber": "={{$json[\"from\"]}}",
+        "textBody": "Hi! 👋 Welcome to eSIM Support.  How can I help you today?",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        20,
+        660
+      ],
+      "id": "857745b7-8263-4c4f-9bee-aba5a1d8ba73",
+      "name": "Send Welcome Message",
+      "webhookId": "8460bcfb-c16c-428b-b6ca-22023d954902"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an eSIM support agent. Based on the following information, predict if Human Approval 1 and Human Approval 2 would be YES or NO, and generate a suitable Orange reply to the customer.\n\nCustomer message: {{$(\"Extract NSCE and MSISDN\").item.json.originalMessage}}\nNSCE: {{$(\"Extract NSCE and MSISDN\").item.json.nsce}}\nMSISDN: {{$(\"Extract NSCE and MSISDN\").item.json.msisdn}}\n\nRespond in JSON format:\n{\n  \"approval1\": \"YES or NO\",\n  \"approval2\": \"YES or NO\",\n  \"orangeReply\": \"Your reply text here\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        800,
+        -160
+      ],
+      "id": "f910133c-9bda-4bc9-8c6d-8869dbed3259",
+      "name": "AI Predicts Approvals & Replies"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $json.choices[0].message.content;\nlet aiResult = {};\ntry {\n  aiResult = JSON.parse(response);\n} catch (e) {\n  aiResult = { approval1: \"NO\", approval2: \"NO\", orangeReply: \"AI response could not be parsed.\" };\n}\nreturn [{ json: aiResult }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        -160
+      ],
+      "id": "10ac5221-c8db-4238-bb35-1483e162e9d0",
+      "name": "Extract AI's Pridcitions"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        -160
+      ],
+      "id": "82a33b58-4cc6-4c9b-a9ac-d2595936b2a6",
+      "name": "Log AI Predictions"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Extract Approval Response": {
+      "main": [
+        [
+          {
+            "node": "Check First Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check First Approval": {
+      "main": [
+        [
+          {
+            "node": "Send Email to Orange Support",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to customer-Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Orange Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Orange Reply for Second Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Second Approval": {
+      "main": [
+        [
+          {
+            "node": "Extract Second Approval1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Second Approval": {
+      "main": [
+        [
+          {
+            "node": "Check Second Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Second Approval": {
+      "main": [
+        [
+          {
+            "node": "Send Orange's Reply to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Message to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Message-ID": {
+      "main": [
+        [
+          {
+            "node": "Wait for Orange Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract NSCE and MSISDN": {
+      "main": [
+        [
+          {
+            "node": "Check NSCE & MSISDN Present",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Orange's Reply to Customer": {
+      "main": [
+        [
+          {
+            "node": "Log Ticket (Success) to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for First Approval": {
+      "main": [
+        [
+          {
+            "node": "Extract Approval Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract WhatsApp Data": {
+      "main": [
+        [
+          {
+            "node": "Extract NSCE and MSISDN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Approval Received": {
+      "main": [
+        [
+          {
+            "node": "Extract Approval Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Pending Status to Approver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check NSCE & MSISDN Present": {
+      "main": [
+        [
+          {
+            "node": "Send Ticket Draft for Approval",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Predicts Approvals & Replies",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Request NSCE & MSISDN from Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request NSCE & MSISDN from Customer": {
+      "main": [
+        [
+          {
+            "node": "Wait for Customer Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Customer Response": {
+      "main": [
+        [
+          {
+            "node": "Extract NSCE and MSISDN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Ticket Draft for Approval": {
+      "main": [
+        [
+          {
+            "node": "Wait for First Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email to Orange Support": {
+      "main": [
+        [
+          {
+            "node": "Store Message-ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Orange Reply": {
+      "main": [
+        [
+          {
+            "node": "Extract Orange Reply1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Orange Reply for This Ticket?": {
+      "main": [
+        [
+          {
+            "node": "Wait for Orange Reply1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Reminder to Orange Support",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Orange Reply1": {
+      "main": [
+        [
+          {
+            "node": "Extract Orange Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Orange Reply for Second Approval": {
+      "main": [
+        [
+          {
+            "node": "Wait for Second Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Second Approval Received?": {
+      "main": [
+        [
+          {
+            "node": "Extract Second Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Second Approval Timeout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Failure Message to Customer": {
+      "main": [
+        [
+          {
+            "node": "og Ticket (Pending) to Google Sheets\tLogs pending ticket to Google Sheets Google Sheets2\tLog Ticket (Final) to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Pending Status to Approver": {
+      "main": [
+        [
+          {
+            "node": "Wait for First Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder to Orange Support": {
+      "main": [
+        [
+          {
+            "node": "Wait for Orange Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Second Approval Timeout": {
+      "main": [
+        [
+          {
+            "node": "Wait for Second Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Approval Response1": {
+      "main": [
+        [
+          {
+            "node": "Check if Approval Received",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Orange Reply1": {
+      "main": [
+        [
+          {
+            "node": "Is Orange Reply for This Ticket?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Second Approval1": {
+      "main": [
+        [
+          {
+            "node": "Is Second Approval Received?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to customer-Pending": {
+      "main": [
+        [
+          {
+            "node": "Log Ticket (Pending) to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send Orange's Reply to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Ticket Draft for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Message": {
+      "main": [
+        [
+          {
+            "node": "Extract WhatsApp Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Predicts Approvals & Replies": {
+      "main": [
+        [
+          {
+            "node": "Extract AI's Pridcitions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract AI's Pridcitions": {
+      "main": [
+        [
+          {
+            "node": "Log AI Predictions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log AI Predictions": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "73580814-1d30-4359-b148-22141f672c63",
+  "meta": {
+    "instanceId": "f0d7d3c1189be40ae55195fba173a6682acbb22e3ebf8daf57d5372cd9a9a84e"
+  },
+  "id": "XkCN7POuzR2fL2A5",
+  "tags": []
+}
